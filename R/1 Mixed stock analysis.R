@@ -11,13 +11,14 @@ library(mixstock)
 
 load("data/hap.freqs.rda")
 
-# combining GRO.OAX and CentAm data as one source population
 hap.freqs$CentAm <- hap.freqs$CentAm + hap.freqs$GRO.OAX
 hap.freqs <- select(hap.freqs, c(CentAm, MMex, MCP))
 
+# mixed stock analysis uses the mixstock package by Ben Bolker
+
+# Bayesian
 # This analysis requires me to remove the 8 haplotypes that are found in MCP, not the other strata
-# They are uninformative and cause an error
-hap.dat.mcmc <- as.mixstock.data(hap.freqs[-which((hap.freqs[,1]+hap.freqs[,2])==0),])
+hap.dat.mcmc <- as.mixstock.data(hap.freqs[-which((hap.freqs[,1]+hap.freqs[,2])==0),1:3])
 
 # Run MCMC
 hap.mcmc <- tmcmc(hap.dat.mcmc, n.iter = 40000, verbose = TRUE)
@@ -26,8 +27,12 @@ hap.mcmc <- tmcmc(hap.dat.mcmc, n.iter = 40000, verbose = TRUE)
 diag.1 <- calc.mult.RL(hap.dat.mcmc)
 diag.2 <- calc.GR(hap.dat.mcmc, tot = 40000)
 
-#format results
-mcmc.res <- cbind(hap.mcmc$fit$input.freq, confint(hap.mcmc))
+# Format results
+mcmc.res <- cbind(hap.mcmc$fit$input.freq, confint(hap.mcmc), 
+                  rbind(median(hap.mcmc$resample$contrib.CentAm), median(hap.mcmc$resample$contrib.MMex)))
+colnames(mcmc.res) <- c("mean","2.5%","97.5","median")
 
-write.csv(mcmc.res, file = "Mix-stock_mcmc.csv")
-write.csv(diag.2[[1]], file = "Gelman-Rubin_convergence_check.csv")
+write.csv(mcmc.res, file = "results/Mix-stock_mcmc.csv")
+write.csv(diag.2[[1]], file = "results/Gelman-Rubin_convergence_check.csv")
+
+save.image(file = "results/mixed.stock.analysis.rda")
